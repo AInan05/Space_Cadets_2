@@ -1,14 +1,5 @@
 /** Space Cadets Challenge 2
  *  Basic interpreter for "BareBones Language".
- *  regular lines -> keyword(\s(condition\sdo)|(varName))?;
- *  List of possible error messages:
- *  1. Value cannot be negative -
- *  2. var not found -
- *  3. File not found -
- *  4. Not a valid file type -
- *  5. Unexpected indentation
- *  6. Syntax Error -
- *  7. Unexpected end
  */
 
 import java.io.File;
@@ -27,11 +18,11 @@ public class BareBonesInterpreter {
     File bareBonesFile;
     List<String> code = new ArrayList<>();
     Integer lineNo = 0;
-    Integer endLineNo = 0;
     Stack<Integer> whileStack = new Stack<>();
     String operations = "incr|decr|clear";
     String iterations = "while";
     boolean skip = false;
+    boolean endFound = false;
 
     public String openFile(String filePath) {
         try {
@@ -49,35 +40,34 @@ public class BareBonesInterpreter {
         }
     }
 
-    public void interpret() {
+    public String interpret() {
         while (lineNo < code.size()) {
             String s = code.get(lineNo);
+            String errorCheck = "pass";
             if (indentation >= 3) {
                 if (s.substring(indentation - 3).startsWith("end;")) {
                     indentation -= 3;
-                    endLineNo = lineNo;
-                    if (!skip) {
-                        lineNo = whileStack.pop();
-                    }
-                    s = code.get(lineNo);
-                    if (skip) {
-                        skip = false;
-                    }
+                    endFound = true;
                 }
-                s = s.substring(indentation);
             }
-            if (!skip) {
-                String errorCheck = execute(s);
+            s = s.substring(indentation);
+            if (!skip || endFound) {
+                errorCheck = execute(s);
+            }
+            if (!errorCheck.equals("pass")) {
+                return errorCheck;
             }
             lineNo++;
         }
+        return "pass";
     }
 
     public String execute(String s) {
         String[] stuff = s.split("\\s|;");
         String keyword = stuff[0];
+        System.out.println(keyword + s);
         String errorCheck = syntaxErrorCheck(keyword, s);
-        if (errorCheck.equals("pass")) {
+        if (!errorCheck.equals("pass")) {
             return errorCheck;
         }
         switch(keyword) {
@@ -95,21 +85,31 @@ public class BareBonesInterpreter {
                 break;
             case "while":
                 bbwhile(stuff[1], Integer.valueOf(stuff[3]));
+                break;
+            case "end":
+                end();
+                break;
         }
         return errorCheck;
     }
 
     public String syntaxErrorCheck(String keyword, String line) {
         if (keyword.matches(operations)) {
-            String operationRegex = keyword + "\\s[a-z]+;";
+            String operationRegex = keyword + "\\s([a-z]|[A-Z])+;";
             if (line.matches(operationRegex)) {
                 return "pass";
             } else {
                 return "Syntax Error";
             }
         } else if (keyword.matches(iterations)) {
-            String iterationRegex = keyword + "\\s[a-z]+\\snot\\d;";
+            String iterationRegex = keyword + "\\s(([a-z]|[A-Z])+\\snot\\s\\d\\sdo);";
             if (line.matches(iterationRegex)) {
+                return "pass";
+            } else {
+                return "Syntax Error";
+            }
+        } else if (keyword.matches("end")) {
+            if (line.equals("end;")) {
                 return "pass";
             } else {
                 return "Syntax Error";
@@ -145,19 +145,39 @@ public class BareBonesInterpreter {
 
     public void bbwhile(String name, Integer num) {
         indentation += 3;
-        if (variables.get(name).equals(num)) {
-            skip = true;
+        whileStack.push(lineNo);
+        if (variables.get(name) != null){
+            if (variables.get(name).equals(num)) {
+                skip = true;
+            }
+        }
+    }
+
+    public void end() {
+        endFound = false;
+        if (skip) {
+            skip = false;
+            whileStack.pop();
         } else {
-            whileStack.push(lineNo);
+            lineNo = whileStack.pop() - 1;
         }
     }
 
     public static void main(String[] args) {
+        String errorCheck;
         System.out.println("Please enter code path: ");
         Scanner inputListener = new Scanner(System.in);
         String codePath = inputListener.nextLine();
         BareBonesInterpreter brb = new BareBonesInterpreter();
-        brb.openFile(codePath);
-        brb.interpret();
+
+        errorCheck = brb.openFile(codePath);
+        if (errorCheck.equals("pass")) {
+            errorCheck = brb.interpret();
+        }
+        if (errorCheck.equals("pass")) {
+            System.out.println("Program was executed successfully.");
+        } else {
+            System.out.println("Error at line " + (brb.lineNo + 1) + ": " + errorCheck);
+        }
     }
 }
