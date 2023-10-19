@@ -8,7 +8,3 @@ I tries a bunch of approaches and ended up using this one to ensure that the nes
 The program uses a dictionary to handle the variables.
 
 I used subroutines for each keyword so the program would be extendable.
-
-The program is fully funcional, but I'm still yet to run additional tests.
-
-I'll comment the code soon(probably).
